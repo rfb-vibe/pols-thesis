@@ -1,0 +1,304 @@
+---
+title: "Morally Convicted Political Attitudes and Democratic Norms"
+author: "Rebecca Frost-Brewer"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r load-libraries, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(moderndive)
+library(ltm)
+library(psych)
+library(knitr)
+library(broom)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+
+```
+
+
+## Data
+
+```{r initial-data-cleaning, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+full_anes <- read_csv("data/anes_timeseries_2020_csv_20210719.csv")
+
+anes <- full_anes %>%
+  dplyr::select(V201200, V201366, V201367, V201368, V201369, V202260, V202261,
+         V202262, V202263, V202264, V202265, V202266, V202267, V202268,
+         V202269, V201510, V201600, V201006, V201502, V201507x) %>%
+  rename(ideology = V201200,
+         norm_news = V201366,
+         norm_branches = V201367,
+         norm_officials = V201368,
+         norm_facts = V201369,
+         egal_equalop = V202260,
+         egal_worryless = V202261,
+         egal_notbigprob = V202262,
+         egal_fewerprobs = V202263,
+         moraltrad_adjmoral = V202264,
+         moraltrad_moretrad = V202265,
+         auth_childind = V202266,
+         auth_childcur = V202267,
+         auth_childobed = V202268,
+         auth_childconsid = V202269,
+         education = V201510,
+         sex = V201600,
+         interest = V201006,
+         econ_perc = V201502,
+         age = V201507x) %>%
+  mutate(ideology = ifelse(ideology %in% 1:7, ideology, NA),
+         norm_news = ifelse(norm_news %in% 1:5, norm_news, NA),
+         norm_branches = ifelse(norm_branches %in% 1:5, norm_branches, NA),
+         norm_officials = ifelse(norm_officials %in% 1:5, norm_officials, NA),
+         norm_facts = ifelse(norm_facts %in% 1:5, norm_facts, NA),
+         egal_equalop = ifelse(egal_equalop %in% 1:5, egal_equalop, NA),
+         egal_worryless = ifelse(egal_worryless %in% 1:5, egal_worryless, NA),
+         egal_notbigprob = ifelse(egal_notbigprob %in% 1:5, egal_notbigprob, NA),
+         egal_fewerprobs = ifelse(egal_fewerprobs %in% 1:5, egal_fewerprobs, NA),
+         moraltrad_adjmoral = ifelse(moraltrad_adjmoral %in% 1:5, moraltrad_adjmoral, NA),
+         moraltrad_moretrad = ifelse(moraltrad_moretrad %in% 1:5, moraltrad_moretrad, NA),
+         auth_childind = ifelse(auth_childind %in% 1:2, auth_childind, NA),
+         auth_childcur = ifelse(auth_childcur %in% 1:2, auth_childcur, NA),
+         auth_childobed = ifelse(auth_childobed %in% 1:2, auth_childobed, NA),
+         auth_childconsid = ifelse(auth_childconsid %in% 1:2, auth_childconsid, NA),
+         education = ifelse(education %in% 1:16, education, NA),
+         sex = ifelse(sex %in% 1:2, sex, NA),
+         interest = ifelse(interest %in% 1:3, interest, NA),
+         econ_perc = ifelse(econ_perc %in% 1:5, econ_perc, NA))
+
+write.csv(x = anes, file = "data/anes_clean_all_numeric.csv")
+
+
+```
+
+
+
+```{r anes-data, message=FALSE, warning=FALSE}
+# Import smaller, cleaned dataset
+
+anes <- read_csv("data/anes_clean_all_numeric.csv")
+
+```
+
+
+
+## Create the additive indeces for variables of interest
+```{r create-additive-indeces, message=FALSE, warning=FALSE}
+
+anes$egal_scale = anes$egal_equalop + anes$egal_fewerprobs + anes$egal_notbigprob +
+  anes$egal_worryless
+anes$dem_norms = anes$norm_news + anes$norm_branches + anes$norm_officials + anes$norm_facts
+anes$moraltrad_scale = anes$moraltrad_adjmoral + anes$moraltrad_moretrad
+anes$auth_scale = anes$auth_childconsid + anes$auth_childcur + anes$auth_childind +
+  anes$auth_childobed
+
+anes_measures <- anes %>%
+  dplyr::select(ideology, egal_scale, norm_news, norm_branches, norm_officials,
+                norm_facts, dem_norms, moraltrad_scale, auth_scale,
+                education, sex, interest, econ_perc, age) %>%
+  drop_na()
+
+summary(anes_measures)
+describe(anes_measures$dem_norms)
+
+anes_measures %>%
+  dplyr::select(dem_norms) %>%
+  filter(dem_norms == 4) %>%
+  count()
+
+anes_measures %>%
+  dplyr::select(dem_norms) %>%
+  summarise(mean(dem_norms, trim = 0.1))
+
+```
+
+For democratic norms, an index score of 20 indicates that maintaining democratic norms is extremely important whereas an index score of 0 indicates that maintaining democratic norms is not important at all. The mean index score for democratic norms is 17.0
+
+For ideology, 1 indicates a respondent identifies themselves as Extremely Liberal whereas 7 indicates the respondent identifies themselves as Extremely Conservative. The mean ideological identification is 4.1, indicating "moderate; middle of the road."
+
+For the moral egalitarianism scale, an index score of 20 indicates that the respondent disagrees strongly with statements of egalitarianism whereas an index score of 4 indicates that the respondent agrees strongly with statements of egalitarianism In other words, the higher the index score, the more strongly the respondent agrees with egalitarianism. The mean egalitarian score is 11.2
+
+For moral traditionalism, an index score of 10 indicates that the respondent disagrees strongly with statements of moral traditionalism, whereas an index score of 2 indicates that the respondent agrees strongly with statements of moral traditionalism. The lower the index score, the more the respondent agrees with moral traditionalism. The mean moral traditionalism score is 5.4
+
+The authoritarianism scale ranges from 2 (least authoritarian) to 8 (most authoritarian). The mean score is 6.0
+
+
+
+## Distribution of variables
+```{r distributions}
+
+anes_measures %>%
+  ggplot(aes(x = ideology)) +
+  geom_histogram(binwidth = 1, color = "white") +
+  theme_minimal()
+
+anes_measures %>%
+  ggplot(aes(x = egal_scale)) +
+  geom_histogram(binwidth = 1, color = "white") +
+  theme_minimal()
+
+anes_measures %>%
+  ggplot(aes(x = dem_norms)) +
+  geom_histogram(binwidth = 1, color = "white") +
+  theme_minimal()
+
+anes_measures %>%
+  ggplot(aes(x = dem_norms)) +
+  geom_boxplot() +
+  theme_minimal()
+
+anes_measures %>%
+  ggplot(aes(x = moraltrad_scale)) +
+  geom_histogram(binwidth = 1, color = "white") +
+  theme_minimal()
+
+anes_measures %>%
+  ggplot(aes(x = auth_scale)) +
+  geom_histogram(binwidth = 1, color = "white") +
+  theme_minimal()
+
+```
+
+```{r egal-model}
+
+dem_norms_egal_model <- lm(dem_norms ~ egal_scale + ideology + auth_scale + education
+                           + sex + interest + econ_perc + age, data = anes_measures)
+summary(dem_norms_egal_model)
+tab_model(dem_norms_egal_model)
+
+
+```
+
+
+```{r trad-model}
+
+dem_norms_trad_model <- lm(dem_norms ~ moraltrad_scale + ideology + auth_scale + education
+                           + sex + interest + econ_perc + age, data = anes_measures)
+summary(dem_norms_trad_model)
+tab_model(dem_norms_trad_model)
+
+
+```
+
+```{r disag-moraltrad-model}
+
+dem_norms_fair <- lm(norm_news ~ moraltrad_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+dem_norms_branches <- lm(norm_branches ~ moraltrad_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+dem_norms_officials <- lm(norm_officials ~ moraltrad_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+dem_norms_facts <- lm(norm_facts ~ moraltrad_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+tab_model(dem_norms_fair, dem_norms_branches)
+tab_model(dem_norms_officials, dem_norms_facts)
+
+```
+
+
+```{r disag-egal-model}
+
+dem_norms_fair2 <- lm(norm_news ~ egal_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+dem_norms_branches2 <- lm(norm_branches ~ egal_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+dem_norms_officials2 <- lm(norm_officials ~ egal_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+dem_norms_facts2 <- lm(norm_facts ~ egal_scale + ideology + education + sex +
+                              interest + econ_perc + age, data = anes_measures)
+
+tab_model(dem_norms_fair2, dem_norms_branches2)
+tab_model(dem_norms_officials2, dem_norms_facts2)
+
+```
+
+
+### Check internal validity of index scores
+```{r cronbach-alpha-egal, message=FALSE, warning=FALSE}
+
+scale1_egal_scale <- data.frame(anes[,6:9])
+alpha(scale1_egal_scale, check.keys = TRUE)
+
+```
+
+Cronbach's Alpha for the moral egalitarian index score is 0.75, which indicates an acceptable internal consistency.
+
+```{r cronbach-alpha-dem-norms, message=FALSE, warning=FALSE}
+
+scale2_dem_norms <- data.frame(anes[,2:5])
+alpha(scale2_dem_norms, check.keys = TRUE)
+
+```
+
+Cronbach's Alpha for the democratic norms index score is 0.72, which indicates an acceptable internal consistency.
+
+```{r cronbach-alpha-moral-trad, message=FALSE, warning=FALSE}
+
+scale3_moraltrad_scale <- data.frame(anes[,10:11])
+alpha(scale3_moraltrad_scale, check.keys = TRUE)
+
+```
+
+Cronbach's Alpha for the moral traditionalism index score is 0.50, which indicates a poor internal consistency.
+
+```{r cronbach-alpha-authoritarian, message=FALSE, warning=FALSE}
+
+scale4_auth_scale <- data.frame(anes[,12:15])
+alpha(scale4_auth_scale, check.keys = TRUE)
+
+```
+
+Cronbach's Alpha for the authoritarianism index score is 0.66, which indicates a questionable internal consistency.
+
+
+
+
+
+### Check assumptions of ideology model
+```{r}
+
+# Linearity
+anes_measures %>%
+  ggplot(anes_measures, mapping = aes(x = ideology, y = dem_norms)) +
+  geom_point() +
+  geom_smooth(method='lm')
+
+anes_measures %>%
+  ggplot(anes_measures, mapping = aes(x = egal_scale, y = dem_norms)) +
+  geom_point() +
+  geom_smooth(method='lm')
+
+anes_measures %>%
+  ggplot(anes_measures, mapping = aes(x = moraltrad_scale, y = dem_norms)) +
+  geom_point() +
+  geom_smooth(method='lm')
+
+anes_measures %>%
+  ggplot(anes_measures, mapping = aes(x = auth_scale, y = dem_norms)) +
+  geom_point() +
+  geom_smooth(method='lm')
+
+
+```
+
+
